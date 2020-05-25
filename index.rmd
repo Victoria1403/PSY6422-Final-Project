@@ -1,0 +1,249 @@
+---
+title: "Final project"
+author: "Victoria Zakharova"
+output:
+html_document: default
+
+---
+
+**1. Data origins**
+
+For this project I am going to use World Happiness Report 2019 data. It is taken from https://www.kaggle.com/unsdsn/world-happiness?select=2019.csv
+
+It uses the Gallup World Poll that ranks 156 countries by how happy their citizens perceive themselves to be. 
+
+It includes the following columns:
+
+1. Overall rank
+2. Country or region (156)
+3. Score
+4. GDP per capita
+5. Social support
+6. Healthy life expectancy
+7. Freedom to make life choices 8. Generosity
+9. Perceptions of corruption
+
+They demonstrate the extent to which these factors contribute to happiness of each country.  
+
+Here are the top five happiest countries:
+
+```{r}
+
+data2019 <- read.csv("2019.csv")       #load the data
+
+bottom <- tail(data2019, 5)            #show 5 last raws
+top <- head(data2019, 5)               #show 5 first rows 
+print(top)
+
+
+```
+
+**2. Research questions** 
+
+My goal is to find out the defferences in contribution of various factors to happiness of countries across the world. In particular, I am going to look at the differences in contribution of the given factors to the top 5 and bottom 5 countries and compare them to the average score across all given countries. 
+
+**3. Data preparation and visualization**
+
+For this project I have used the following packages: 
+
+dplyr, tidyr, ggplot2, gganimate
+
+First, lets look at the level of happiness across all 156 countries. 
+
+```{r}
+library(ggplot2)
+
+data2019 <- as.data.frame(data2019) 
+
+t <- ggplot(data = data2019, 
+            aes(x = reorder(Country.or.region, -Score), y = Score)) +     #to create scatterplot
+     geom_point(stat="identity", color = "darkblue", size = 1) +
+     ggtitle("World Happiness Report 2019")                               #to add title
+
+t <- t + xlab("Countries")                                                #change x-axis label              
+t <- t + ylab("Happiness Score")                                          #change y-axis label
+t + theme(axis.text.x = element_text(angle = 90,size = 4, hjust = 1))     #change the size and the angle 
+
+```
+
+Next, let's look at how happy citizens of the top 5 and bottom 5 countries perceive themselves to be.
+
+
+```{r, dev='png', interval=0.2}
+
+topbottom <- rbind(top, bottom)    #to combine the first 5 and the last 5 contries
+
+library(gganimate)                                             
+tbanim <- ggplot(topbottom, 
+                aes(x = reorder(Country.or.region, - Score), y = Score)) +
+       geom_bar(stat = "identity",
+                aes(fill = Score)) +
+       transition_states(Score, transition_length = 1, state_length = 3,
+       wrap = TRUE) +                                 
+       shadow_mark() +                                                    
+       enter_grow() +                                 
+       ggtitle("The most and least happy countries") +
+       theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+       xlab("Countries") +
+       ylab("Happiness Score")
+print(tbanim)
+
+animate(tbanim)
+        
+      
+
+
+
+
+
+```
+
+
+
+Now, let's analyze the factors that contribute to the happiness. 
+
+Firstly, let's see what factors contribute the most to happiness of the top five countries.
+
+
+```{r}
+library(tidyr)
+
+top <- head(data2019, 5)
+top <- top[, -c(1, 3)]      #delete unnecessary columns
+
+
+gathereddata <- gather(top, Factors, Score, -Country.or.region)
+
+grouped <- ggplot(data = gathereddata, 
+                  aes(x = reorder(Factors,- Score), y = Score,  fill = Country.or.region)) +
+           geom_bar(stat="identity", position ="dodge", colour = "black", width = 0.6) +
+           ggtitle("The 5 happiest countries")
+
+grouped <- grouped + xlab("Factors")
+
+grouped + theme(axis.text.x = element_text(angle = 15, hjust = 1, size = 7))
+
+
+```
+
+It is clear that social support and GDP per capita contribute the most to happiness of the top 5 countries.
+
+
+Secondly, let's look at the contribution of factors to happiness of the bottom five countries.
+
+```{r}
+bottom <- tail(data2019, 5)
+bottom <- bottom[, -c(1, 3)] 
+
+
+gathereddataB <- gather(bottom, Factors, Score, -Country.or.region)
+
+groupedB <- ggplot(data = gathereddataB, 
+                   aes(x = reorder(Factors, Score), y = Score,  fill = Country.or.region)) +
+            geom_bar(stat="identity", position="dodge", colour = "black", width = 0.6) +
+            ggtitle("The least happy countries")
+
+groupedB <- groupedB + xlab("Factors")
+groupedB + theme(axis.text.x = element_text(angle = 17, hjust = 1, size = 7))
+
+```
+
+For the bottom 5 countries social support and healthy life expectancy seem to contribute more than other factors. 
+
+
+Next, let's see the differences in contribution of various factors to happiness of the top 5 and bottom 5 countries and compare them to the average score 
+
+
+
+```{r message=FALSE, warning=FALSE}
+
+average <- data2019[, -c(1, 2, 3)]
+
+library(dplyr)
+
+ave <- average %>% summarise_if(is.numeric, mean)     #to find the mean
+
+gatheredave <- gather(ave, Factors, Score)
+gathereddataT <- gather(top, Factors, Score, -Country.or.region)
+gathereddataB <- gather(bottom, Factors, Score, -Country.or.region)
+
+avT <- ggplot(gathereddataT, aes(x = Factors, y = Score)) +
+  geom_jitter(size = 3, shape = 21,
+              aes(fill = "Apoints")) +
+  geom_jitter(data=gathereddataB,size = 3, shape = 21, 
+              aes(fill = "Bpoints")) +
+  geom_jitter(data = gatheredave, size = 3, shape = 21, 
+              aes(fill = "Cpoints")) +
+  scale_fill_manual(name = "", 
+                    labels = c("Apoints" = "Top5",
+                              "Bpoints" = "Bottom5",
+                              "Cpoints" = "Average"),
+                    values =c("Apoints" = "grey46",
+                              "Bpoints" = "steelblue2",
+                              "Cpoints" = "red")) +
+  
+  facet_wrap( ~ Factors, scale="free_x") +
+  theme(strip.text.x = element_blank()) +
+  ggtitle("Top 5 and bottom 5 countries")
+
+print(avT)
+
+
+
+```
+
+As can be seen, GDP per capita, healthy life expectancy and social support contribute more to happiness of the top 5 countries compare to the average country. 
+
+
+Finally, let's see the contribution of these factors to happiness across all 156 countries.
+
+```{r}
+
+all <- data2019[, -c(1, 3)]
+
+gathereddatal <- gather(all, Factors, Score, -Country.or.region)
+
+all <- ggplot(gathereddatal, 
+              aes(x = Factors, y = Score)) +
+       geom_jitter(size = 0.8, shape = 19, colour = "dodgerblue4") + 
+       facet_wrap( ~ Factors, scale="free_x") + 
+       ggtitle("Contribution of factors") +
+       theme(strip.text.x = element_blank()) 
+  
+all <- all + xlab("Factors")
+print(all)
+
+
+```
+
+
+Here it is clearly visible that freedom to make life choices, generosity and perception of corruption contribute the least to happiness across all the countries. 
+
+
+**4. Summary** 
+
+To conclude, there is a quite big difference in the level of happiness of the top and bottom countries. However, there are some similaritites in the factors that contribute the most to happiness across the wolrd, such as social support, GDP per capita. For futher analysis it might be useful to analyze the correlation between the level of happiness and each factor. 
+
+
+                                                   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
